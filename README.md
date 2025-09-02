@@ -85,3 +85,15 @@ This template comes with [Tailwind CSS](https://tailwindcss.com/) already config
 ---
 
 Built with ❤️ using React Router.
+\n+## Database (Drizzle ORM)
+\n+This project uses Drizzle ORM with SQLite (better-sqlite3).
+\n+- Generate migrations from schema changes:\n\n```bash
+pnpm db:generate
+```
+\n+- Apply migrations to the local database (`./data/sqlite.db`):\n\n```bash
+pnpm db:migrate
+```
+\n+- Explore your schema/data with Drizzle Studio:\n\n```bash
+pnpm db:studio
+```
+\n+Schema lives at `app/db/schema.ts`; the DB client is `app/db/client.server.ts`.
