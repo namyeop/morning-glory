@@ -1,22 +1,20 @@
-FROM node:20-alpine AS development-dependencies-env
-COPY . /app
+FROM node:20-alpine AS deps
 WORKDIR /app
-RUN npm ci
+RUN corepack enable
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile=false
 
-FROM node:20-alpine AS production-dependencies-env
-COPY ./package.json package-lock.json /app/
+FROM node:20-alpine AS build
 WORKDIR /app
-RUN npm ci --omit=dev
-
-FROM node:20-alpine AS build-env
-COPY . /app/
-COPY --from=development-dependencies-env /app/node_modules /app/node_modules
-WORKDIR /app
-RUN npm run build
+RUN corepack enable
+COPY . .
+COPY --from=deps /app/node_modules ./node_modules
+RUN pnpm build
 
 FROM node:20-alpine
-COPY ./package.json package-lock.json /app/
-COPY --from=production-dependencies-env /app/node_modules /app/node_modules
-COPY --from=build-env /app/build /app/build
 WORKDIR /app
-CMD ["npm", "run", "start"]
+RUN corepack enable
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --prod --frozen-lockfile=false
+COPY --from=build /app/build ./build
+CMD ["pnpm", "start"]
