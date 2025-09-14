@@ -1,0 +1,27 @@
+FROM node:24-slim
+
+WORKDIR /app
+
+# pnpm 활성화
+RUN corepack enable
+
+# Lightweight deps for dev; MySQL client not required for mysql2
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# 의존성 파일 복사
+COPY package.json pnpm-lock.yaml* ./
+
+# 의존성 설치
+RUN pnpm install --frozen-lockfile=false
+
+# 소스 코드 복사
+COPY . .
+
+# 데이터 디렉토리 생성
+RUN mkdir -p /app/data
+
+# 포트 노출
+EXPOSE 3000
+
+# 개발 서버 실행
+CMD ["pnpm", "dev"]

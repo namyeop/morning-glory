@@ -1,0 +1,65 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - prod # docker-compose --profile prod up으로 실행
+
+  # 개발 환경용 서비스 (선택사항)
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:5173" # React Router dev 서버는 5173 포트 사용
+    volumes:
+      - .:/app
+    working_dir: /app
+    # Ensure container-native node_modules exist and better-sqlite3 is compiled
+    command: sh -lc "pnpm install --frozen-lockfile=false --force && pnpm dev --host 0.0.0.0"
+    environment:
+      - NODE_ENV=development
+      - CI=true
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/morning_glory
+    tty: true
+    stdin_open: true
+    profiles:
+      - dev # docker-compose --profile dev up으로 실행
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=morning_glory
+      - POSTGRES_USER=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - dev
+
+volumes:
+  pg_data:

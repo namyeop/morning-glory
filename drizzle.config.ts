@@ -1,11 +1,12 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  schema: "./app/db/schema.ts",
+  schema: "./app/db/schema.pg.ts",
   out: "./drizzle",
-  driver: "better-sqlite",
+  dialect: "postgresql",
   dbCredentials: {
-    url: "./data/sqlite.db",
+    url:
+      process.env.DATABASE_URL ||
+      "postgres://postgres:postgres@postgres:5432/morning_glory",
   },
 });
-
