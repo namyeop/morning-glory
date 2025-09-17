@@ -2,6 +2,7 @@ import type { Route } from "./+types/auth.google.callback";
 import { db } from "~/db/client.server";
 import { users, sessions } from "~/db/schema.pg";
 import { eq } from "drizzle-orm";
+import { redirect } from "react-router";
 
 type TokenResponse = {
   access_token: string;
@@ -44,46 +45,68 @@ export async function loader({ request }: Route.LoaderArgs) {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const cookies = parseCookies(request.headers);
+
+  const headers = new Headers();
+  // Always clear oauth_state on arrival
+  const clearState =
+    "oauth_state=; Path=/; Max-Age=0; SameSite=Lax" +
+    (process.env.NODE_ENV === "production" ? "; Secure" : "");
+  headers.append("Set-Cookie", clearState);
+
   if (!code || !state || !cookies["oauth_state"] || cookies["oauth_state"] !== state) {
-    return new Response("Invalid OAuth state", { status: 400 });
+    return redirect("/login?error=oauth_state", { headers });
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
   if (!clientId || !clientSecret) {
-    return new Response("Missing Google OAuth env", { status: 500 });
+    return redirect("/login?error=server_config", { headers });
   }
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || buildRedirectUri(request);
+  const redirectUri =
+    process.env.GOOGLE_REDIRECT_URI || buildRedirectUri(request);
 
   // Exchange code
-  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-    }),
-  });
-  if (!tokenRes.ok) {
-    const txt = await tokenRes.text();
-    return new Response(`Token exchange failed: ${txt}`, { status: 500 });
+  let tokens: TokenResponse;
+  try {
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+    if (!tokenRes.ok) {
+      return redirect("/login?error=token_exchange", { headers });
+    }
+    tokens = (await tokenRes.json()) as TokenResponse;
+  } catch (_) {
+    return redirect("/login?error=token_exchange", { headers });
   }
-  const tokens = (await tokenRes.json()) as TokenResponse;
 
   // Fetch user info
-  const infoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-    headers: { Authorization: `Bearer ${tokens.access_token}` },
-  });
-  if (!infoRes.ok) {
-    const txt = await infoRes.text();
-    return new Response(`Userinfo failed: ${txt}`, { status: 500 });
+  let info: UserInfo;
+  try {
+    const infoRes = await fetch(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      }
+    );
+    if (!infoRes.ok) {
+      return redirect("/login?error=userinfo", { headers });
+    }
+    info = (await infoRes.json()) as UserInfo;
+  } catch (_) {
+    return redirect("/login?error=userinfo", { headers });
   }
-  const info = (await infoRes.json()) as UserInfo;
   const userId = info.sub;
-  const nickname = info.name || (info.email ? info.email.split("@")[0] : `user_${userId.slice(0, 6)}`);
+  const nickname =
+    info.name ||
+    (info.email ? info.email.split("@")[0] : `user_${userId.slice(0, 6)}`);
 
   // Upsert user
   const existing = await db.select().from(users).where(eq(users.id, userId));
@@ -123,15 +146,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     .filter(Boolean)
     .join("; ");
 
-  // Clear oauth_state cookie
-  const clearState = "oauth_state=; Path=/; Max-Age=0; SameSite=Lax" + (process.env.NODE_ENV === "production" ? "; Secure" : "");
-
-  return Response.redirect("/", 303, {
-    headers: { "Set-Cookie": `${cookie}\n${clearState}` },
-  });
+  headers.append("Set-Cookie", cookie);
+  headers.append("Set-Cookie", clearState);
+  return redirect("/", { headers });
 }
 
 export default function AuthGoogleCallback() {
   return null;
 }
-

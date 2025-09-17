@@ -1,7 +1,7 @@
 import type { Route } from "./+types/home";
 import MainPage from "../components/MainPage";
-import { useLoaderData, useNavigation } from "react-router";
-import { sessions, users } from "~/db/schema.pg";
+import { useLoaderData, useNavigation, redirect } from "react-router";
+import { sessions, users, checkIns } from "~/db/schema.pg";
 import { eq } from "drizzle-orm";
 
 export function meta({}: Route.MetaArgs) {
@@ -13,18 +13,20 @@ export function meta({}: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   const { db } = await import("~/db/client.server");
+  const url = new URL(request.url);
+  const celebrate = url.searchParams.get("celebrate") === "1";
   const cookie = request.headers.get("cookie") || "";
-  const map = Object.fromEntries(
-    cookie
-      .split(";")
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((p) => {
-        const i = p.indexOf("=");
-        return [decodeURIComponent(p.slice(0, i)), decodeURIComponent(p.slice(i + 1))];
-      })
-  );
-  const sessionId = map["mg_session"];
+  const getCookie = (name: string) => {
+    try {
+      const esc = name.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&");
+      const m = cookie.match(new RegExp(`(?:^|;\\s*)${esc}=([^;]+)`));
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch {
+      return null;
+    }
+  };
+  const sessionId = getCookie("mg_session");
+  
   let authenticated = false;
   let userNickname: string | null = null;
   let streakCount = 0;
@@ -52,15 +54,18 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  return Response.json({ authenticated, userNickname, streakCount });
+  return Response.json({ authenticated, userNickname, streakCount, celebrate });
 }
 
 export async function action({ request }: Route.ActionArgs) {
     const form = await request.formData();
     const intent = String(form.get("intent") || "");
     if (intent === "logout") {
-        const clear = "mg_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax" + (process.env.NODE_ENV === "production" ? "; Secure" : "");
-        return Response.redirect("/", 303, { headers: { "Set-Cookie": clear } });
+        const headers = new Headers();
+        const base = "mg_session=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax";
+        headers.append("Set-Cookie", base);
+        headers.append("Set-Cookie", base + "; Secure");
+        return redirect("/", { headers });
     }
 
 	const userId = "demo-user";
@@ -85,7 +90,7 @@ export async function action({ request }: Route.ActionArgs) {
 	} catch (e) {
 		// ignore unique violation
 	}
-	return Response.redirect("/", 303);
+	return redirect("/");
 }
 
 export default function Home() {
@@ -100,6 +105,7 @@ export default function Home() {
         userNickname={userNickname}
         streakCount={data?.streakCount ?? 0}
         submitting={submitting}
+        celebrate={data?.celebrate ?? false}
       />
     );
 }

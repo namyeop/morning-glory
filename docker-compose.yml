@@ -7,8 +7,11 @@ services:
       - "3000:3000"
     volumes:
       - ./data:/app/data
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
+      - PORT=3000
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
@@ -25,10 +28,12 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - "3000:5173" # React Router dev 서버는 5173 포트 사용
+      - "5173:5173" # 외부 5173 → 내부 5173. 콜백 5173과 일치
     volumes:
       - .:/app
     working_dir: /app
+    env_file:
+      - .env
     # Ensure container-native node_modules exist and better-sqlite3 is compiled
     command: sh -lc "pnpm install --frozen-lockfile=false --force && pnpm dev --host 0.0.0.0"
     environment:

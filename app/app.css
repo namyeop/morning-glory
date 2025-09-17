@@ -56,25 +56,26 @@ body {
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 12px; /* shadcn guideline */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  /* Warm primary (Headspace-inspired orange) */
+  --primary: oklch(0.78 0.15 40); /* approx warm orange */
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.46 0 0);
+  --accent: oklch(0.85 0.08 50); /* soft coral/apricot */
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.7 0.19 25);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.80 0.10 50); /* warm ring */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -97,18 +98,18 @@ body {
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.75 0.14 40);
+  --primary-foreground: oklch(0.145 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(0.6 0.09 50);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.75 0.10 50);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -132,3 +133,56 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Streak interactions & motion (respects reduced motion) */
+@keyframes streak-breath-kf {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,149,64,0.0); }
+  50% { transform: scale(1.02); box-shadow: 0 8px 24px -12px rgba(255,149,64,0.25); }
+}
+@keyframes streak-ping-kf {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.streak-breath { animation: streak-breath-kf 3.5s ease-in-out infinite; will-change: transform, box-shadow; }
+.streak-ping { animation: streak-ping-kf 2.2s ease-out infinite; will-change: transform, opacity; }
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-breath, .streak-ping { animation: none !important; }
+}
+
+/* Check-in panel shine sweep */
+@keyframes shine-sweep-kf {
+  0% { transform: translateX(-150%); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(150%); opacity: 0; }
+}
+.checkin-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 32px;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.12) 50%, transparent 80%);
+  mix-blend-mode: screen;
+  transform: translateX(-150%);
+  animation: shine-sweep-kf 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkin-panel::after { animation: none; }
+}
+
+/* Camera flash fade */
+@keyframes flash-fade-kf { from { opacity: 0.9; } to { opacity: 0; } }
+.flash-fade { animation: flash-fade-kf 200ms ease-out forwards; }
+@media (prefers-reduced-motion: reduce) { .flash-fade { animation: none; opacity: 0; } }
+
+/* Celebrate burst */
+@keyframes celebrate-burst-kf {
+  0% { opacity: 0; transform: scale(0.96); }
+  10% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 0; transform: scale(1); }
+}
+.celebrate-burst { animation: celebrate-burst-kf 1200ms ease-out forwards; }
+@media (prefers-reduced-motion: reduce) { .celebrate-burst { animation: none; opacity: 0; } }

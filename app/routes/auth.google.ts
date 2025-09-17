@@ -1,4 +1,5 @@
 import type { Route } from "./+types/auth.google";
+import { redirect } from "react-router";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 
@@ -14,6 +15,7 @@ function makeState() {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
 
 export async function loader({ request }: Route.LoaderArgs) {
   const clientId = process.env.GOOGLE_CLIENT_ID || "";
@@ -35,7 +37,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   });
 
   const cookie = `oauth_state=${state}; HttpOnly; Path=/; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
-  return Response.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`, 302, {
+  return redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`, {
     headers: { "Set-Cookie": cookie },
   });
 }
@@ -43,4 +45,3 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function AuthGoogle() {
   return null;
 }
-
